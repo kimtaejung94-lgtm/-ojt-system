@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OJT 업무 매뉴얼 시스템</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+/* ── LOGIN v3 ── */
+#login-screen{position:fixed;inset:0;background:var(--text);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column}
+.login-box{background:#fff;border-radius:20px;padding:44px 40px;width:400px;max-width:92vw;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.login-logo{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;margin-bottom:4px}
+.login-sub{font-size:12px;color:var(--muted);margin-bottom:24px;line-height:1.6}
+.login-form-group{margin-bottom:12px}
+.login-label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase}
+.login-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;transition:border-color .2s}
+.login-input:focus{outline:none;border-color:var(--text)}
+.login-btn-submit{width:100%;padding:12px;border-radius:10px;background:var(--text);color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;transition:opacity .2s}
+.login-btn-submit:hover{opacity:.88}
+.login-btn-submit:disabled{opacity:.5;cursor:not-allowed}
+.login-error{font-size:12px;color:var(--w);margin-top:8px;text-align:center;min-height:18px}
+.login-footer{font-size:11px;color:rgba(255,255,255,.3);margin-top:16px;text-align:center}
+
+/* ── Change PW Modal ── */
+.cpw-form .form-group{margin-bottom:10px}
+
+/* ── Network status ── */
+#net-status{position:fixed;top:0;left:0;right:0;padding:6px 16px;font-size:11px;font-weight:700;text-align:center;z-index:9000;display:none;transition:all .3s}
+#net-status.offline{background:#E24B4A;color:#fff;display:block}
+#net-status.syncing{background:#F59E0B;color:#fff;display:block}
+
+/* ── Saving indicator ── */
+.save-indicator{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-left:auto}
+.save-indicator.saving{color:#F59E0B}.save-indicator.saved{color:var(--m)}.save-indicator.error{color:var(--w)}
+.save-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.save-dot.pulse{animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Password change link ── */
+.pw-change-link{font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline;margin-left:8px;opacity:.7}
+.pw-change-link:hover{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- NETWORK STATUS -->
+<div id="net-status">서버 연결 없음 — 오프라인 모드로 동작 중</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">OJT 업무 매뉴얼 시스템</div>
+    <div class="login-sub">ID와 비밀번호로 로그인하세요.</div>
+    <div class="login-form-group">
+      <label class="login-label">ID</label>
+      <input class="login-input" id="login-id" type="text" placeholder="ID 입력" autocomplete="username">
+    </div>
+    <div class="login-form-group">
+      <label class="login-label">비밀번호</label>
+      <input class="login-input" id="login-pw" type="password" placeholder="비밀번호 입력" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn-submit" id="login-submit-btn" onclick="doLogin()">로그인</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+  <div class="login-footer">OJT Manual System v3.0 · 서버 기반 공용 시스템</div>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox">
+  <button id="lb-close" onclick="closeLB()">✕</button>
+  <img id="lb-img" src="" alt="">
+  <div id="lb-cap"></div>
+</div>
+
+<!-- CONFIRM -->
+<div id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title" id="cf-title">확인</div>
+    <div class="confirm-msg" id="cf-msg"></div>
+    <div class="confirm-btns">
+      <button class="btn btn-outline" onclick="cfCancel()">취소</button>
+      <button class="btn btn-danger" onclick="cfOk()">확인</button>
+    </div>
+  </div>
+</div>
+<div id="toast-wrap"></div>
+<div id="prog-bar"><div id="prog-fill"></div></div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-tf">
+  <div class="modal modal-lg">
+    <div class="modal-header"><h2 id="tf-title">업무 추가</h2><button class="modal-close" onclick="closeM('modal-tf')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">업무명 <span class="req">*</span></label><input class="form-input" id="tf-name"></div>
+        <div class="form-group"><label class="form-label">담당팀 <span class="req">*</span></label>
+          <select class="form-select" id="tf-team"><option value="staffing">스태핑서비스팀</option><option value="mgmt">경영지원팀</option><option value="both">공동</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">단계</label>
+          <select class="form-select" id="tf-stage"><option value="s1">① 영업·수주</option><option value="s2">② 채용</option><option value="s3">③ 입사</option><option value="s4">④ 근태·급여</option><option value="s5">⑤ 정산·신고</option><option value="s6">⑥ 연간법정</option><option value="s7">⑦ 퇴직</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">소요시간</label><input class="form-input" id="tf-time"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">처리주기</label><select class="form-select" id="tf-cycle"><option value="수시">수시</option><option value="정기">정기</option><option value="법정">법정</option><option value="연간">연간</option></select></div>
+        <div class="form-group"><label class="form-label">담당자</label><input class="form-input" id="tf-owner"></div>
+      </div>
+      <div class="form-group"><label class="form-label">업무 요약</label><input class="form-input" id="tf-summary"></div>
+      <div class="form-group"><label class="form-label">주의사항</label><textarea class="form-textarea" id="tf-caution" rows="2"></textarea></div>
+      <div class="form-group"><label class="form-label">실무 팁</label><textarea class="form-textarea" id="tf-tip" rows="2"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">법정기한</label><input class="form-input" id="tf-deadline"></div>
+        <div class="form-group"><label class="form-label">내부기한</label><input class="form-input" id="tf-inner"></div>
+      </div>
+      <input type="hidden" id="tf-id">
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeM('modal-tf')">취소</button><button class="btn btn-primary" onclick="saveTaskForm()">💾 저장</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-proc-img">
+  <div class="modal">
+    <div class="modal-header"><h2>이미지 추가</h2><button class="modal-close" onclick="closeM('modal-proc-img')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">이미지 제목 <span class="req">*</span></label><input class="form-input" id="pif-title"></div>
+      <div class="form-group"><label class="form-label">이미지 파일 <span class="req">*</span></label>
+        <input type="file" id="pif-file" accept="image/*" onchange="previewProcImg()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px">
+        <div id="pif-preview" style="margin-top:8px;display:none"><img id="pif-prev-img" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border)"></div>
+      </div>
+      <div class="form-group"><label class="form-label">설명</label><textarea class="form-textarea" id="pif-desc" rows="3"></textarea></div>
+      <input type="hidden" id="pif-task-id"><input type="hidden" id="pif-proc-id"><input type="hidden" id="pif-data">
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeM('modal-proc-img')">취소</button><button class="btn btn-primary" onclick="saveProcImg()">💾 저장</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-gf">
+  <div class="modal">
+    <div class="modal-header"><h2 id="gf-title">용어 추가</h2><button class="modal-close" onclick="closeM('modal-gf')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">용어 <span class="req">*</span></label><input class="form-input" id="gf-term"></div>
+      <div class="form-group"><label class="form-label">설명 <span class="req">*</span></label><textarea class="form-textarea" id="gf-def" rows="4"></textarea></div>
+      <input type="hidden" id="gf-id">
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeM('modal-gf')">취소</button><button class="btn btn-primary" onclick="saveGlossForm()">💾 저장</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-hfm">
+  <div class="modal modal-lg">
+    <div class="modal-header"><h2>히스토리 등록</h2><button class="modal-close" onclick="closeM('modal-hfm')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">발생일자 <span class="req">*</span></label><input class="form-input" type="date" id="hfm-date"></div>
+        <div class="form-group"><label class="form-label">중요도</label><select class="form-select" id="hfm-prio"><option value="low">낮음</option><option value="normal" selected>보통</option><option value="high">높음</option><option value="urgent">긴급</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">관련 업무</label><select class="form-select" id="hfm-task"><option value="">선택 (선택사항)</option></select></div>
+        <div class="form-group"><label class="form-label">이슈 유형 <span class="req">*</span></label><select class="form-select" id="hfm-type"><option>급여오류</option><option>근태누락</option><option>계약분쟁</option><option>청구오류</option><option>4대보험 오류</option><option>퇴직정산 오류</option><option>입사서류 누락</option><option>기타</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">관련 거래처/직원</label><input class="form-input" id="hfm-related"></div>
+      <div class="form-group"><label class="form-label">발생 내용 <span class="req">*</span></label><textarea class="form-textarea" id="hfm-content" rows="4"></textarea></div>
+      <div class="form-group"><label class="form-label">원인 분석</label><textarea class="form-textarea" id="hfm-cause" rows="3"></textarea></div>
+      <div class="form-group"><label class="form-label">조치 내용</label><textarea class="form-textarea" id="hfm-action" rows="3"></textarea></div>
+      <div class="form-group"><label class="form-label">최종 결과</label><textarea class="form-textarea" id="hfm-result" rows="2"></textarea></div>
+      <div class="form-group"><label class="form-label">재발 방지</label><textarea class="form-textarea" id="hfm-prevent" rows="3"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">담당팀</label><select class="form-select" id="hfm-team"><option value="staffing">스태핑</option><option value="mgmt">경영지원</option><option value="both">공동</option></select></div>
+        <div class="form-group"><label class="form-label">등록자</label><input class="form-input" id="hfm-author"></div>
+      </div>
+      <input type="hidden" id="hfm-id">
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeM('modal-hfm')">취소</button><button class="btn btn-primary" onclick="saveHistForm()">💾 저장</button></div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" id="modal-cpw">
+  <div class="modal">
+    <div class="modal-header"><h2>비밀번호 변경</h2><button class="modal-close" onclick="closeM('modal-cpw')">✕</button></div>
+    <div class="modal-body cpw-form">
+      <div class="form-group"><label class="form-label">현재 비밀번호</label><input class="form-input" type="password" id="cpw-cur"></div>
+      <div class="form-group"><label class="form-label">새 비밀번호 (6자 이상)</label><input class="form-input" type="password" id="cpw-new"></div>
+      <div class="form-group"><label class="form-label">새 비밀번호 확인</label><input class="form-input" type="password" id="cpw-confirm" onkeydown="if(event.key==='Enter')changePassword()"></div>
+      <div class="login-error" id="cpw-error"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeM('modal-cpw')">취소</button><button class="btn btn-primary" onclick="changePassword()">변경</button></div>
+  </div>
+</div>
+
+<!-- Admin: Reset Password Modal -->
+<div class="modal-overlay" id="modal-rpw">
+  <div class="modal">
+    <div class="modal-header"><h2>비밀번호 초기화</h2><button class="modal-close" onclick="closeM('modal-rpw')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">사용자 ID</label><select class="form-select" id="rpw-uid"></select></div>
+      <div class="form-group"><label class="form-label">새 비밀번호</label><input class="form-input" type="password" id="rpw-new"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeM('modal-rpw')">취소</button><button class="btn btn-primary" onclick="resetPassword()">초기화</button></div>
+  </div>
+</div>
+
+<!-- AI CHATBOT -->
+<button id="chat-fab" onclick="toggleChat()"><span class="fab-icon">🤖</span><span>AI 업무도우미</span></button>
+<div id="chat-window">
+  <div class="chat-hdr">
+    <div class="chat-hdr-icon">🤖</div>
+    <div class="chat-hdr-info"><div class="chat-hdr-title">AI 업무도우미</div><div class="chat-hdr-sub">업무 매뉴얼 검색 · 이슈 조회</div></div>
+    <div class="chat-hdr-btns">
+      <button class="chat-hbtn" onclick="clearChat()" title="초기화">↺</button>
+      <button class="chat-hbtn" onclick="toggleChat()" title="닫기">✕</button>
+    </div>
+  </div>
+  <div class="chat-sug" id="chat-sug">
+    <div class="sug-label">추천 질문</div>
+    <div class="sug-pills" id="sug-pills"></div>
+  </div>
+  <div class="chat-msgs" id="chat-msgs"></div>
+  <div class="chat-inp-wrap">
+    <textarea class="chat-inp" id="chat-inp" placeholder="업무에 대해 질문하세요..." rows="1"
+      onkeydown="onChatKey(event)" oninput="resizeChatInp(this)"></textarea>
+    <button class="chat-send" id="chat-send" onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app">
+  <div id="topnav">
+    <button class="hamburger" onclick="toggleSB()">☰</button>
+    <div class="nav-brand">OJT 업무 매뉴얼</div>
+    <div class="nav-spacer"></div>
+    <div class="save-indicator" id="save-indicator"><div class="save-dot"></div><span id="save-text">서버 연결 중...</span></div>
+    <div id="user-pill" class="user-pill admin" onclick="openUserMenu()" title="사용자 메뉴">
+      <span id="user-icon">👑</span><span id="user-name">사용자</span>
+    </div>
+  </div>
+  <div id="body-wrap">
+    <div id="sidebar">
+      <div class="sb-sec">메인</div>
+      <div class="sb-item active" onclick="showPage('overview')" data-page="overview"><span class="sb-icon">🗺️</span>전체 흐름</div>
+      <div class="sb-item" onclick="showPage('manual')" data-page="manual"><span class="sb-icon">📋</span>업무 매뉴얼</div>
+      <div class="sb-item" onclick="showPage('history')" data-page="history"><span class="sb-icon">📝</span>업무 히스토리 <span class="sb-badge" id="hist-badge">0</span></div>
+      <div class="sb-div"></div>
+      <div class="sb-sec">참고</div>
+      <div class="sb-item" onclick="showPage('glossary')" data-page="glossary"><span class="sb-icon">📖</span>용어 사전</div>
+      <div class="sb-item" onclick="showPage('logs')" data-page="logs" id="sb-logs"><span class="sb-icon">🔍</span>수정 이력</div>
+      <div class="sb-item" onclick="showPage('chatlog')" data-page="chatlog" id="sb-chatlog"><span class="sb-icon">💬</span>챗봇 로그</div>
+      <div class="sb-item" onclick="showPage('permissions')" data-page="permissions" id="sb-perm"><span class="sb-icon">🔒</span>권한 관리</div>
+    </div>
+    <div id="main">
+
+      <!-- OVERVIEW -->
+      <div class="page active" id="page-overview">
+        <div class="hero">
+          <div class="hero-label">Overview · 전체 흐름</div>
+          <div class="hero-title">채용부터 퇴직까지<br>HR 업무 흐름</div>
+          <div class="hero-desc">스태핑서비스팀과 경영지원팀의 전체 업무 구조입니다.</div>
+          <div class="hero-actions">
+            <button class="hero-btn" onclick="showPage('manual')">📋 업무 매뉴얼</button>
+            <button class="hero-btn" onclick="showPage('history')">📝 이슈 히스토리</button>
+          </div>
+        </div>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="section-title">업무 흐름도</div>
+        <div class="section-sub">각 단계를 클릭하면 해당 업무 매뉴얼로 이동합니다.</div>
+        <div id="flow-diagram"></div>
+      </div>
+
+      <!-- MANUAL -->
+      <div class="page" id="page-manual">
+        <div class="hero">
+          <div class="hero-label">업무 매뉴얼</div>
+          <div class="hero-title">처리절차별 매뉴얼</div>
+          <div class="hero-desc">업무 카드 → 처리절차 → 자유 작성형 상세 매뉴얼 구조입니다.</div>
+          <div class="hero-actions">
+            <button class="hero-btn" id="btn-add-task" onclick="openAddTask()">＋ 업무 추가</button>
+          </div>
+        </div>
+        <div class="team-filter">
+          <button class="tf-btn tf-s" id="tf-s" onclick="toggleTF('s')">스태핑</button>
+          <button class="tf-btn tf-m" id="tf-m" onclick="toggleTF('m')">경영지원</button>
+        </div>
+        <div id="manual-content"></div>
+      </div>
+
+      <!-- HISTORY -->
+      <div class="page" id="page-history">
+        <div class="hero">
+          <div class="hero-label">업무 히스토리</div>
+          <div class="hero-title">이슈 & 해결 이력</div>
+          <div class="hero-desc">업무 중 발생한 이슈와 해결책을 축적합니다.</div>
+          <div class="hero-actions"><button class="hero-btn" onclick="openAddHistModal(null)">＋ 이슈 등록</button></div>
+        </div>
+        <div class="filter-bar">
+          <span class="filter-label">필터</span>
+          <select id="hf-team" onchange="renderHistPage()"><option value="">전체 팀</option><option value="staffing">스태핑</option><option value="mgmt">경영지원</option><option value="both">공동</option></select>
+          <select id="hf-type" onchange="renderHistPage()"><option value="">전체 유형</option><option>급여오류</option><option>근태누락</option><option>계약분쟁</option><option>청구오류</option><option>4대보험 오류</option><option>퇴직정산 오류</option><option>입사서류 누락</option><option>기타</option></select>
+          <select id="hf-prio" onchange="renderHistPage()"><option value="">전체 중요도</option><option value="urgent">긴급</option><option value="high">높음</option><option value="normal">보통</option><option value="low">낮음</option></select>
+          <input type="text" id="hf-kw" placeholder="키워드..." oninput="renderHistPage()">
+        </div>
+        <div id="hist-list"></div>
+      </div>
+
+      <!-- GLOSSARY -->
+      <div class="page" id="page-glossary">
+        <div class="hero"><div class="hero-label">용어 사전</div><div class="hero-title">HR · 회계 용어</div><div class="hero-desc">자주 쓰이는 용어를 정리했습니다.</div></div>
+        <div class="filter-bar">
+          <input type="text" id="gloss-kw" placeholder="용어 검색..." oninput="renderGlossPage()" style="flex:1">
+          <button class="btn btn-outline btn-sm" id="btn-add-gloss" onclick="openAddGloss()">＋ 용어 추가</button>
+        </div>
+        <div class="gloss-grid" id="gloss-grid"></div>
+      </div>
+
+      <!-- LOGS -->
+      <div class="page" id="page-logs">
+        <div class="hero"><div class="hero-label">수정 이력</div><div class="hero-title">전체 수정 이력</div><div class="hero-desc">관리자 전용 전체 수정 이력입니다.</div></div>
+        <div class="filter-bar">
+          <select id="log-type" onchange="renderLogsPage()"><option value="">전체</option><option value="추가">추가</option><option value="수정">수정</option><option value="삭제">삭제</option></select>
+          <input type="text" id="log-kw" placeholder="검색..." oninput="renderLogsPage()" style="flex:1">
+        </div>
+        <div class="table-wrap"><div id="logs-list" style="padding:8px 0"></div></div>
+      </div>
+
+      <!-- CHATLOG -->
+      <div class="page" id="page-chatlog">
+        <div class="hero"><div class="hero-label">챗봇 로그</div><div class="hero-title">AI 업무도우미 이용 이력</div><div class="hero-desc">관리자 전용입니다.</div></div>
+        <div class="filter-bar"><input type="text" id="chatlog-kw" placeholder="질문 검색..." oninput="renderChatlogPage()" style="flex:1"></div>
+        <div class="table-wrap"><div id="chatlog-list" style="padding:8px 0"></div></div>
+      </div>
+
+      <!-- PERMISSIONS -->
+      <div class="page" id="page-permissions">
+        <div class="hero"><div class="hero-label">권한 관리</div><div class="hero-title">사용자 권한 구조</div><div class="hero-desc">관리자만 접근 가능합니다.</div></div>
+        <div class="section-title" style="margin-bottom:12px">권한별 기능 비교</div>
+        <div class="table-wrap" style="margin-bottom:24px">
+          <table class="data-table">
+            <thead><tr><th>기능</th><th>관리자</th><th>스태핑서비스팀</th><th>경영지원팀</th></tr></thead>
+            <tbody>
+              <tr><td>전체 업무 조회</td><td>✅</td><td>✅</td><td>✅</td></tr>
+              <tr><td>스태핑 업무 편집</td><td>✅</td><td>✅</td><td>❌</td></tr>
+              <tr><td>경영지원 업무 편집</td><td>✅</td><td>❌</td><td>✅</td></tr>
+              <tr><td>히스토리 등록</td><td>✅</td><td>✅</td><td>✅</td></tr>
+              <tr><td>용어사전 편집</td><td>✅</td><td>❌</td><td>❌</td></tr>
+              <tr><td>수정 이력 조회</td><td>✅</td><td>❌</td><td>❌</td></tr>
+              <tr><td>AI 챗봇 검색</td><td>✅</td><td>✅</td><td>✅</td></tr>
+              <tr><td>비밀번호 변경</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="admin-users-section" style="display:none">
+          <div class="section-title" style="margin-bottom:12px">사용자 관리</div>
+          <div class="table-wrap" style="margin-bottom:16px"><table class="data-table"><thead><tr><th>ID</th><th>이름</th><th>권한</th><th>상태</th><th>액션</th></tr></thead><tbody id="users-tbody"></tbody></table></div>
+          <button class="btn btn-outline btn-sm" onclick="openResetPw()">🔑 비밀번호 초기화</button>
+        </div>
+        <div class="section-title" style="margin-bottom:12px;margin-top:20px">현재 세션</div>
+        <div id="perm-info" style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:13px;line-height:2.2"></div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /body-wrap -->
+</div><!-- /app -->
+
+<script src="/app.js"></script>
+</body>
+</html>

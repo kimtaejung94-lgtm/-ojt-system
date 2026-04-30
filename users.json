@@ -1,0 +1,26 @@
+[
+  {
+    "id": "admin",
+    "name": "관리자",
+    "role": "admin",
+    "passwordHash": "$2a$10$h1tknAT5Hq9rATe5OrpXceugHQ7NJ2PqwCmGgQZ18W1uLIg59vU62",
+    "active": true,
+    "createdAt": "2026-04-30T13:47:12.766Z"
+  },
+  {
+    "id": "staffing",
+    "name": "스태핑서비스팀",
+    "role": "staffing",
+    "passwordHash": "$2a$10$h1tknAT5Hq9rATe5OrpXceJg9pSBV2uwBpHdamVrGcI62NZs5gRnq",
+    "active": true,
+    "createdAt": "2026-04-30T13:47:12.856Z"
+  },
+  {
+    "id": "mgmt",
+    "name": "경영지원팀",
+    "role": "mgmt",
+    "passwordHash": "$2a$10$h1tknAT5Hq9rATe5OrpXce.piU1eBc8AjZ9W9Yuaya9zc7EGMP/8O",
+    "active": true,
+    "createdAt": "2026-04-30T13:47:12.948Z"
+  }
+]
