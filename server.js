@@ -18,10 +18,10 @@ const JWT_SECRET  = process.env.JWT_SECRET || 'ojt-secret-change-this';
 const JWT_EXPIRES = process.env.JWT_EXPIRES_IN || '24h';
 
 // ── Paths ──────────────────────────────────────────────
-const DATA_DIR   = path.join(__dirname, '..', 'data');
-const DB_PATH    = path.join(DATA_DIR, 'database.json');
-const USERS_PATH = path.join(DATA_DIR, 'users.json');
-const FRONT_DIR  = path.join(__dirname, '..', 'frontend');
+const DATA_DIR = __dirname;
+const DB_PATH = path.join(__dirname, 'database.json');
+const USERS_PATH = path.join(__dirname, 'users.json');
+const FRONT_DIR = __dirname;
 
 // ── Middleware ─────────────────────────────────────────
 app.use(cors({ origin: true, credentials: true }));
